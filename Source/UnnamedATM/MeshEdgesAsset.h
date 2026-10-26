@@ -33,6 +33,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Source", meta = (ClampMin = "0", ClampMax = "180"))
 	float AngleThresholdDeg = 30.f;
 
+	// Angle minimal d'une arête pour être candidate (les petits pas d'un bevel)
+	UPROPERTY(EditAnywhere, Category = "Source", meta = (ClampMin = "0", ClampMax = "180"))
+	float MinStepAngleDeg = 5.f;
+
+	// Écart maximal (cm) entre une chaîne d'arêtes et sa version simplifiée
+	UPROPERTY(EditAnywhere, Category = "Source", meta = (ClampMin = "0"))
+	float SimplifyTolerance = 0.5f;
+
+	// Un segment dont les deux extrémités sont à moins de cette distance (cm) d'un segment plus long est supprimé
+	UPROPERTY(EditAnywhere, Category = "Source", meta = (ClampMin = "0"))
+	float MergeDistance = 3.f;
+
 	// Arêtes en coordonnées locales du mesh
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Edges")
 	TArray<FEdgeSegment> Edges;
