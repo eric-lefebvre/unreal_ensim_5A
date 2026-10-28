@@ -70,7 +70,7 @@ bool UWaveReceiverComponent::TraceVisible(const FVector& P, const FVector& Origi
 	}
 
 	FHitResult Hit;
-	const FVector End = P + (Origin - P).GetSafeNormal() * 3.0;   // s'arrête 3 cm avant le point
+	const FVector End = P + (Origin - P).GetSafeNormal() * 3.0;   // s'arrÃªte 3 cm avant le point
 	return !GetWorld()->LineTraceSingleByChannel(Hit, Origin, End, ECC_Visibility, Params);
 }
 
@@ -100,12 +100,14 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 			return StartTime + FVector::Dist(Origin, (A + B) * 0.5) / Speed;
 		};
 
-	// Même atténuation que la Point Light de l'onde (Inverse Squared Falloff désactivé)
+	// MÃªme attÃ©nuation que la Point Light de l'onde (Inverse Squared Falloff dÃ©sactivÃ©)
 	auto BrightnessAt = [&](const FVector& P)
 		{
 			const float Ratio = FVector::Dist(Origin, P) / Range;
 			return I0 * FMath::Pow(FMath::Clamp(1.f - Ratio * Ratio, 0.f, 1.f), FalloffExponent);
 		};
+
+	bool bChanged = false;
 
 	for (int32 s = 0; s < SegA.Num(); ++s)
 	{
@@ -115,13 +117,13 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 
 		if (Brightness <= 0.f)
 		{
-			continue;   // hors de portée de l'onde
+			continue;   // hors de portÃ©e de l'onde
 		}
 
 		const bool bStillLit = Now - SegRevealTime[s] <= Renderer->HoldTime;
 		if (bStillLit && Brightness <= SegBrightness[s])
 		{
-			continue;   // déjà allumé au moins aussi fort
+			continue;   // dÃ©jÃ  allumÃ© au moins aussi fort
 		}
 
 		const bool bA = IsVisible(SegA[s]);
@@ -133,6 +135,7 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 			SegInstance[s] = Renderer->SetSegment(SegInstance[s], A, B, RevealTime, Brightness);
 			SegRevealTime[s] = RevealTime;
 			SegBrightness[s] = Brightness;
+			bChanged = true;
 		}
 		else if (bA != bB)
 		{
@@ -153,6 +156,24 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 				}
 			}
 			SegInstance[s] = Renderer->SetSegment(SegInstance[s], StartVis, VisPt, RevealTimeOf(StartVis, VisPt), Brightness);
+			bChanged = true;
 		}
 	}
+
+	if (bChanged)
+	{
+		Renderer->Flush();   // un seul envoi au rendu pour tous les segments modifiÃ©s
+	}
+}
+
+void UWaveReceiverComponent::GetBox(FVector& Center, FVector& Half, FVector& AxisF, FVector& AxisR, FVector& AxisUp) const
+{
+	FVector Min, Max;
+	Mesh->GetLocalBounds(Min, Max);
+
+	Center = GetComponentTransform().TransformPosition((Min + Max) * 0.5);
+	Half = (Max - Min) * 0.5 * GetComponentScale();
+	AxisF = GetForwardVector();
+	AxisR = GetRightVector();
+	AxisUp = GetUpVector();
 }

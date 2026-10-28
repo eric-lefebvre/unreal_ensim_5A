@@ -29,8 +29,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Edges")
 	float Intensity = 1.f;
 
-	// Cr�e ou met � jour l'instance d'un segment. Renvoie son index.
+	// Crée ou met à jour l'instance d'un segment. Renvoie son index.
+	// N'envoie rien au rendu : appeler Flush() après une série de SetSegment.
 	int32 SetSegment(int32 InstanceIndex, const FVector& A, const FVector& B, float RevealTime, float Brightness);
+
+	// Envoie au rendu toutes les modifications faites depuis le dernier Flush.
+	void Flush();
 
 protected:
 	virtual void BeginPlay() override;

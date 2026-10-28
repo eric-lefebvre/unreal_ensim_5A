@@ -10,7 +10,7 @@ AEdgeRenderer::AEdgeRenderer()
 	RootComponent = Lines;
 	Lines->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Lines->SetCastShadow(false);
-	Lines->NumCustomDataFloats = 2;   // 0 = instant d'apparition, 1 = luminosité
+	Lines->NumCustomDataFloats = 2;   // 0 = instant d'apparition, 1 = luminositÃ©
 }
 
 void AEdgeRenderer::BeginPlay()
@@ -42,9 +42,14 @@ int32 AEdgeRenderer::SetSegment(int32 InstanceIndex, const FVector& A, const FVe
 	}
 	else
 	{
-		Lines->UpdateInstanceTransform(Index, Transform, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ true);
+		Lines->UpdateInstanceTransform(Index, Transform, /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
 	}
-	Lines->SetCustomDataValue(Index, 0, RevealTime, /*bMarkRenderStateDirty*/ true);
-	Lines->SetCustomDataValue(Index, 1, Brightness, /*bMarkRenderStateDirty*/ true);
+	Lines->SetCustomDataValue(Index, 0, RevealTime, /*bMarkRenderStateDirty*/ false);
+	Lines->SetCustomDataValue(Index, 1, Brightness, /*bMarkRenderStateDirty*/ false);
 	return Index;
+}
+
+void AEdgeRenderer::Flush()
+{
+	Lines->MarkRenderStateDirty();
 }
