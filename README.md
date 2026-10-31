@@ -1,6 +1,9 @@
-# UnnamedATM
+# UnnamedATM (WIP)
 
 First-person prototype in Unreal Engine 5.6 where the world is pitch dark and only revealed by sound waves.
+
+![The level in the editor](docs/level_editor.png)
+![The same level in game, revealed by waves](docs/level_ingame.png)
 
 ## Controls
 - Right mouse button: emit a sonar pulse
