@@ -2,8 +2,7 @@
 
 First-person prototype in Unreal Engine 5.6 where the world is pitch dark and only revealed by sound waves.
 
-![The level in the editor](docs/level_editor.png)
-![The same level in game, revealed by waves](docs/level_ingame.png)
+<img src="docs/level_editor.png" alt="The level in the editor" width="49%"> <img src="docs/level_ingame.png" alt="The same level in game, revealed by waves" width="49%">
 
 ## Controls
 - Right mouse button: emit a sonar pulse
