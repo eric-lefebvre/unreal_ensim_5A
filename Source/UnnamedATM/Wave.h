@@ -34,12 +34,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Wave|Setup")
 	float MinIntensity = 0.1f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Wave|Setup")
-	float LightFalloff = 2.5f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Wave|Setup")
-	float GlowDuration = 0.5f;
-
 	// --- Paramètres de spawn (mêmes noms que les anciennes variables BP) ---
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
@@ -59,6 +53,20 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
 	float EdgeGain = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
+	float LightFalloff = 2.5f;
+
+	// Durée pendant laquelle une surface reste éclairée après le passage du front
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
+	float GlowDuration = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
+	FLinearColor Color = FLinearColor::White;
+
+	// Le joueur entend cette onde quand le front l'atteint (les échos ne sont pas entendus)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
+	bool IsHeardByPlayer = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Spawn", meta = (ExposeOnSpawn = true))
 	bool IsEcho = false;
@@ -98,6 +106,9 @@ private:
 	void TryFace(UWaveReceiverComponent* Receiver, const FVector& BoxCenter, const FVector& Axis, float Half, const FVector& U, const FVector& V, float HalfU, float HalfV);
 	bool IsFaceVisible(UWaveReceiverComponent* Receiver, const FVector& TargetCenter, const FVector& N, const FVector& U, const FVector& V, float HalfU, float HalfV) const;
 	void SetupEchoFace();
+	void UpdateHearing();
+
+	bool bAwaitingHearing = false;
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> MID;

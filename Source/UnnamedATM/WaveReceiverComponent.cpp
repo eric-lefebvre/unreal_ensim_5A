@@ -8,6 +8,7 @@
 UWaveReceiverComponent::UWaveReceiverComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	bWantsOnUpdateTransform = true;
 }
 
 void UWaveReceiverComponent::BeginPlay()
@@ -45,7 +46,7 @@ void UWaveReceiverComponent::BuildSegments()
 
 		for (int32 k = 0; k <= N; ++k)
 		{
-			Points.Add(FMath::Lerp(WStart, WEnd, static_cast<double>(k) / N));
+			Points.Add(FMath::Lerp(Edge.Start, Edge.End, static_cast<double>(k) / N));
 		}
 		for (int32 k = 0; k < N; ++k)
 		{
@@ -54,11 +55,14 @@ void UWaveReceiverComponent::BuildSegments()
 			SegRevealTime.Add(-1000.f);
 			SegBrightness.Add(0.f);
 			SegInstance.Add(INDEX_NONE);
+			SegShownA.Add(FVector::ZeroVector);
+			SegShownB.Add(FVector::ZeroVector);
 		}
 	}
 
 	check(SegB.Num() == SegA.Num() && SegRevealTime.Num() == SegA.Num()
-		&& SegBrightness.Num() == SegA.Num() && SegInstance.Num() == SegA.Num());
+		&& SegBrightness.Num() == SegA.Num() && SegInstance.Num() == SegA.Num()
+		&& SegShownA.Num() == SegA.Num() && SegShownB.Num() == SegA.Num());
 }
 
 bool UWaveReceiverComponent::TraceVisible(const FVector& P, const FVector& Origin, AActor* IgnoreActor) const
@@ -82,6 +86,15 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 	}
 
 	const float Now = GetWorld()->GetTimeSeconds();
+	const FTransform MeshTransform = Mesh->GetComponentTransform();
+
+	// Positions monde actuelles des points (le mesh a pu bouger)
+	TArray<FVector> World;
+	World.Reserve(Points.Num());
+	for (const FVector& P : Points)
+	{
+		World.Add(MeshTransform.TransformPosition(P));
+	}
 
 	TArray<int8> Visibility;
 	Visibility.Init(-1, Points.Num());
@@ -90,7 +103,7 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 		{
 			if (Visibility[Index] < 0)
 			{
-				Visibility[Index] = TraceVisible(Points[Index], Origin, IgnoreActor) ? 1 : 0;
+				Visibility[Index] = TraceVisible(World[Index], Origin, IgnoreActor) ? 1 : 0;
 			}
 			return Visibility[Index] == 1;
 		};
@@ -111,8 +124,8 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 
 	for (int32 s = 0; s < SegA.Num(); ++s)
 	{
-		const FVector& A = Points[SegA[s]];
-		const FVector& B = Points[SegB[s]];
+		const FVector& A = World[SegA[s]];
+		const FVector& B = World[SegB[s]];
 		const float Brightness = BrightnessAt((A + B) * 0.5);
 
 		if (Brightness <= 0.f)
@@ -120,7 +133,7 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 			continue;   // hors de portée de l'onde
 		}
 
-		const bool bStillLit = Now - SegRevealTime[s] <= Renderer->HoldTime;
+		const bool bStillLit = Now - SegRevealTime[s] <= Renderer->HoldTime * SegBrightness[s];
 		if (bStillLit && Brightness <= SegBrightness[s])
 		{
 			continue;   // déjà allumé au moins aussi fort
@@ -135,6 +148,8 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 			SegInstance[s] = Renderer->SetSegment(SegInstance[s], A, B, RevealTime, Brightness);
 			SegRevealTime[s] = RevealTime;
 			SegBrightness[s] = Brightness;
+			SegShownA[s] = Points[SegA[s]];
+			SegShownB[s] = Points[SegB[s]];
 			bChanged = true;
 		}
 		else if (bA != bB)
@@ -156,6 +171,8 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 				}
 			}
 			SegInstance[s] = Renderer->SetSegment(SegInstance[s], StartVis, VisPt, RevealTimeOf(StartVis, VisPt), Brightness);
+			SegShownA[s] = MeshTransform.InverseTransformPosition(StartVis);
+			SegShownB[s] = MeshTransform.InverseTransformPosition(VisPt);
 			bChanged = true;
 		}
 	}
@@ -163,6 +180,32 @@ void UWaveReceiverComponent::RevealFrom(FVector Origin, float StartTime, float S
 	if (bChanged)
 	{
 		Renderer->Flush();   // un seul envoi au rendu pour tous les segments modifiés
+	}
+}
+
+void UWaveReceiverComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
+
+	if (!Renderer)
+	{
+		return;   // pas encore initialisé (appel à l'enregistrement, avant BeginPlay)
+	}
+
+	const FTransform MeshTransform = Mesh->GetComponentTransform();
+	bool bMoved = false;
+	for (int32 s = 0; s < SegInstance.Num(); ++s)
+	{
+		if (SegInstance[s] != INDEX_NONE)
+		{
+			Renderer->MoveSegment(SegInstance[s], MeshTransform.TransformPosition(SegShownA[s]), MeshTransform.TransformPosition(SegShownB[s]));
+			bMoved = true;
+		}
+	}
+
+	if (bMoved)
+	{
+		Renderer->Flush();
 	}
 }
 

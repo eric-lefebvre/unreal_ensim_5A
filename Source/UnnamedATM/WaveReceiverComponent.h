@@ -45,16 +45,21 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	// Appelé quand le mesh parent bouge : les arêtes affichées suivent
+	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+
 private:
 	void BuildSegments();
 	bool TraceVisible(const FVector& P, const FVector& Origin, AActor* IgnoreActor) const;
 
-	TArray<FVector> Points;
+	TArray<FVector> Points;          // espace local du mesh
 	TArray<int32> SegA;
 	TArray<int32> SegB;
 	TArray<float> SegRevealTime;
 	TArray<float> SegBrightness;
 	TArray<int32> SegInstance;
+	TArray<FVector> SegShownA;       // extrémités affichées, espace local du mesh
+	TArray<FVector> SegShownB;
 
 	UPROPERTY()
 	TObjectPtr<AEdgeRenderer> Renderer;

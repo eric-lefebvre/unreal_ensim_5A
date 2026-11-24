@@ -1,5 +1,8 @@
 #include "Wave.h"
 #include "WaveReceiverComponent.h"
+#include "SoundListener.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/Pawn.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -34,8 +37,11 @@ void AWave::BeginPlay()
 	PointLight->SetAttenuationRadius(Range);
 	PointLight->SetLightFalloffExponent(LightFalloff);
 	PointLight->SetSourceRadius(SourceRadius);
+	PointLight->SetLightColor(Color);
 
 	SetLifeSpan(Range / Speed + GlowDuration);
+
+	bAwaitingHearing = IsHeardByPlayer;
 
 	if (IsEcho)
 	{
@@ -54,6 +60,11 @@ void AWave::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (bAwaitingHearing)
+	{
+		UpdateHearing();
+	}
+
 	const FVector Origin = GetActorLocation();
 	const float R = Speed * (GetWorld()->GetTimeSeconds() - StartTime);
 
@@ -68,9 +79,9 @@ void AWave::Tick(float DeltaSeconds)
 		}
 	}
 
-	if (Pending.Num() == 0)
+	if (Pending.Num() == 0 && !bAwaitingHearing)
 	{
-		SetActorTickEnabled(false);   // plus rien à révéler
+		SetActorTickEnabled(false);   // plus rien à révéler ni à faire entendre
 	}
 }
 
@@ -156,8 +167,11 @@ void AWave::TryFace(UWaveReceiverComponent* Receiver, const FVector& BoxCenter, 
 	Echo->I0 = I0 * Receiver->Reflectivity;
 	Echo->Range = Range;
 	Echo->EdgeGain = EdgeGain;
+	Echo->Color = Color;
 	Echo->IsEcho = true;
-	Echo->IsSpawningEchoes = IsSpawningEchoes;
+	Echo->IsSpawningEchoes = false;   // un seul rebond
+	Echo->LightFalloff = LightFalloff;
+	Echo->GlowDuration = GlowDuration;
 	Echo->SourceActor = Receiver->GetOwner();
 	Echo->FaceCenter = TargetCenter;
 	Echo->FaceNormal = N;
@@ -208,4 +222,36 @@ void AWave::SetupEchoFace()
 	MID->SetVectorParameterValue(TEXT("FaceV"), FLinearColor(FaceV));
 	MID->SetScalarParameterValue(TEXT("FaceHalfU"), FaceHalfU);
 	MID->SetScalarParameterValue(TEXT("FaceHalfV"), FaceHalfV);
+}
+
+void AWave::UpdateHearing()
+{
+	APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
+	const FVector Listener = Player->GetActorLocation();
+	const FVector Origin = GetActorLocation();
+	const float Dist = FVector::Dist(Origin, Listener);
+	const float R = Speed * (GetWorld()->GetTimeSeconds() - StartTime);
+
+	if (R < FMath::Min(Dist, Range))
+	{
+		return;   // le front n'est pas encore arrivé
+	}
+	bAwaitingHearing = false;
+
+	if (Dist > Range)
+	{
+		return;   // hors de portée
+	}
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(WaveHearing), /*bTraceComplex*/ false, this);
+	if (SourceActor)
+	{
+		Params.AddIgnoredActor(SourceActor);
+	}
+	Params.AddIgnoredActor(Player);
+	FHitResult Hit;
+	const bool bThroughWalls = GetWorld()->LineTraceSingleByChannel(Hit, Origin, Listener, ECC_Visibility, Params);
+
+	checkf(Player->Implements<USoundListener>(), TEXT("Le pawn joueur doit implementer l'interface SoundListener"));
+	ISoundListener::Execute_OnSoundHeard(Player, Origin, Range, bThroughWalls);
 }

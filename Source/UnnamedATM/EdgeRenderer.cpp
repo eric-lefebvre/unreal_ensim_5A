@@ -27,13 +27,18 @@ void AEdgeRenderer::BeginPlay()
 	MID->SetScalarParameterValue(TEXT("Intensity"), Intensity);
 }
 
-int32 AEdgeRenderer::SetSegment(int32 InstanceIndex, const FVector& A, const FVector& B, float RevealTime, float Brightness)
+FTransform AEdgeRenderer::SegmentTransform(const FVector& A, const FVector& B) const
 {
 	const FVector Dir = B - A;
-	const FTransform Transform(
+	return FTransform(
 		FRotationMatrix::MakeFromX(Dir).Rotator(),
 		(A + B) * 0.5,
 		FVector(Dir.Size() / 100.0, Thickness / 100.0, Thickness / 100.0));
+}
+
+int32 AEdgeRenderer::SetSegment(int32 InstanceIndex, const FVector& A, const FVector& B, float RevealTime, float Brightness)
+{
+	const FTransform Transform = SegmentTransform(A, B);
 
 	int32 Index = InstanceIndex;
 	if (Index == INDEX_NONE)
@@ -47,6 +52,11 @@ int32 AEdgeRenderer::SetSegment(int32 InstanceIndex, const FVector& A, const FVe
 	Lines->SetCustomDataValue(Index, 0, RevealTime, /*bMarkRenderStateDirty*/ false);
 	Lines->SetCustomDataValue(Index, 1, Brightness, /*bMarkRenderStateDirty*/ false);
 	return Index;
+}
+
+void AEdgeRenderer::MoveSegment(int32 InstanceIndex, const FVector& A, const FVector& B)
+{
+	Lines->UpdateInstanceTransform(InstanceIndex, SegmentTransform(A, B), /*bWorldSpace*/ true, /*bMarkRenderStateDirty*/ false, /*bTeleport*/ true);
 }
 
 void AEdgeRenderer::Flush()

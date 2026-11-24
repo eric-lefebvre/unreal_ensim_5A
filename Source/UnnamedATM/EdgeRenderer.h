@@ -33,9 +33,16 @@ public:
 	// N'envoie rien au rendu : appeler Flush() après une série de SetSegment.
 	int32 SetSegment(int32 InstanceIndex, const FVector& A, const FVector& B, float RevealTime, float Brightness);
 
+	// Déplace l'instance d'un segment sans toucher à son apparition ni à sa luminosité.
+	// N'envoie rien au rendu : appeler Flush() ensuite.
+	void MoveSegment(int32 InstanceIndex, const FVector& A, const FVector& B);
+
 	// Envoie au rendu toutes les modifications faites depuis le dernier Flush.
 	void Flush();
 
 protected:
 	virtual void BeginPlay() override;
+
+private:
+	FTransform SegmentTransform(const FVector& A, const FVector& B) const;
 };
